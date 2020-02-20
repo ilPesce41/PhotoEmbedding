@@ -150,7 +150,7 @@ class ImageEmbedWindow(QMainWindow):
         print(points)
         print(npoints)
 
-        p = get_projection_params(xi,xip)
+        p = get_projection_params(xip,xi)
 
         self.modified = project_image(self.background,self.embedded,p)
         self.figcanvas.ax.clear()
@@ -244,10 +244,10 @@ def project_image(image,embedded,p):
     ])
 
     xs,ys = embedded.shape[1],embedded.shape[0]
-    xlim,ylim = image.shape[1],image.shape[0]
+    xlim,ylim = embedded.shape[1],embedded.shape[0]
     print(H)
-    for y in range(embedded.shape[0]):
-        for x in range(embedded.shape[1]):
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
             xi = np.array([x,y,1]).T
             xip = H@xi
             xp,yp,c = xip[0],xip[1],xip[2]
@@ -255,7 +255,7 @@ def project_image(image,embedded,p):
             yp = int(yp/c)
             if xp>0 and xp<xlim:
                 if yp>0 and yp<ylim:
-                    nimage[yp,xp] = embedded[y,x]
+                    nimage[y,x] = embedded[yp,xp]
     
     return nimage
             
