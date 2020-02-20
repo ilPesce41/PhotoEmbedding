@@ -135,7 +135,7 @@ class ImageEmbedWindow(QMainWindow):
             return
         
         xlim,ylim = self.embedded.shape[0:2]
-        npoints = sorted([(0,0),(xlim,0),(ylim,0),(xlim,ylim)])
+        npoints = sorted([(0,0),(xlim,0),(0,ylim),(xlim,ylim)])
 
         xi = []
         xip = []
@@ -146,6 +146,10 @@ class ImageEmbedWindow(QMainWindow):
 
         xi = np.array(xi)
         xip = np.array(xip)
+        
+        print(points)
+        print(npoints)
+
         p = get_projection_params(xi,xip)
 
         self.modified = project_image(self.background,self.embedded,p)
@@ -167,16 +171,16 @@ def build_hessian(x,y):
     y_sum = np.sum(y)
     y_squared_sum = np.sum(y*y)
     xy_sum = np.sum(x*y)
-
+    n = len(x)
     hessian = np.array([
-        [1,0,x_sum,y_sum,0,0],
-        [0,1,0,0,x_sum,y_sum],
+        [n,0,x_sum,y_sum,0,0],
+        [0,n,0,0,x_sum,y_sum],
         [x_sum,0,x_squared_sum,xy_sum,0,0],
         [y_sum,0,xy_sum,y_squared_sum,0,0],
         [0,x_sum,0,0,x_squared_sum,xy_sum],
         [0,y_sum,0,0,xy_sum,y_squared_sum]
     ])
-
+    hessian = hessian
     return hessian
 
 def build_b_mat(xi,xip):
@@ -185,9 +189,9 @@ def build_b_mat(xi,xip):
     returns b matrix
     """
     
-    xdif = xi[:,0] - xip[:,0]
+    xdif = xip[:,0] - xi[:,0]
     x,y = xi[:,0],xi[:,1]
-    ydif = xi[:,1] - xip[:,1]
+    ydif = xip[:,1] - xi[:,1]
 
     vsum = np.sum
 
@@ -199,7 +203,7 @@ def build_b_mat(xi,xip):
         [vsum(x*ydif)],
         [vsum(y*ydif)]
     ])
-
+    b_mat = b_mat 
     return b_mat
 
 
@@ -232,23 +236,26 @@ def project_image(image,embedded,p):
     nimage = np.copy(image)
     
     tx,ty,a00,a01,a10,a11 = p
-    print(tx,ty,a00,a01,a10,a11)
+    print(tx)
     H = np.array([
         [1+a00,a01,tx],
         [a10,1+a11,ty],
         [0,0,1]
     ])
 
-    xlim,ylim = image.shape[0],image.shape[1]
-
-    for x in range(embedded.shape[0]):
-        for y in range(embedded.shape[1]):
+    xs,ys = embedded.shape[1],embedded.shape[0]
+    xlim,ylim = image.shape[1],image.shape[0]
+    print(H)
+    for y in range(embedded.shape[0]):
+        for x in range(embedded.shape[1]):
             xi = np.array([x,y,1]).T
             xip = H@xi
-            xp,yp = int(xip[0]),int(xip[1])
+            xp,yp,c = xip[0],xip[1],xip[2]
+            xp = int(xp/c)
+            yp = int(yp/c)
             if xp>0 and xp<xlim:
                 if yp>0 and yp<ylim:
-                    nimage[xp,yp] = embedded[x,y]
+                    nimage[yp,xp] = embedded[y,x]
     
     return nimage
             
@@ -262,5 +269,34 @@ if __name__ == "__main__":
 
     Application.exec_()
 
+# [(409, 247), (425, 410), (665, 237), (673, 422)]
+# [(0, 153), (0, 153), (153, 0), (153, 153)]
 
+    imm1 = np.array([
+        [0, 153], 
+        [0, 153], 
+        [153, 0], 
+        [153, 153]
+    ])
 
+    imm2 = np.array([
+        [409, 247], 
+        [425, 410], 
+        [665, 237], 
+        [673, 422]
+    ])
+
+    p = get_projection_params(imm1,imm2)
+    tx,ty,a00,a01,a10,a11 = p
+    H = np.array([
+        [1+a00,a01,tx],
+        [a10,1+a11,ty],
+        [0,0,1]
+    ])
+
+    imm_p = np.copy(imm1)
+    imm1 = np.hstack([imm1,np.ones((4,1))])
+    for i in range(imm1.shape[0]):
+        imm_p[i] = (H@imm1[i].T)[:-1]
+
+    print(imm_p)
