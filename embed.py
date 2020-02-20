@@ -8,6 +8,8 @@ from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 import sys
 import os
+from polygon import sort_rect,Rectangle
+import numba
 
 class ClickCanvas(FigureCanvas):
 
@@ -125,7 +127,7 @@ class ImageEmbedWindow(QMainWindow):
 
     def embed_image(self):
 
-        points = sorted(self.figcanvas.points)
+        points = sort_rect(self.figcanvas.points)
         if len(points)!=4:
             return
         
@@ -135,7 +137,7 @@ class ImageEmbedWindow(QMainWindow):
             return
         
         xlim,ylim = self.embedded.shape[0:2]
-        npoints = sorted([(0,0),(ylim,0),(0,xlim),(ylim,xlim)])
+        npoints = sort_rect([(0,0),(ylim,0),(0,xlim),(ylim,xlim)])
 
         xi = []
         xip = []
@@ -152,7 +154,7 @@ class ImageEmbedWindow(QMainWindow):
 
         p = get_projection_params(xip,xi)
 
-        self.modified = project_image(self.background,self.embedded,p)
+        self.modified = project_image(self.background,self.embedded,p,Rectangle(points))
         self.figcanvas.ax.clear()
         self.figcanvas.points = []
         self.figcanvas.dot_artists = []
@@ -225,8 +227,7 @@ def get_projection_params(xi,xip):
     p = p[:,0].T
     return p
 
-
-def project_image(image,embedded,p):
+def project_image(image,embedded,p,rect):
     """
     Embedds and image `embedded` in `image` using
     affine projection with paramters `p`
@@ -236,7 +237,6 @@ def project_image(image,embedded,p):
     nimage = np.copy(image)
     
     tx,ty,a00,a01,a10,a11 = p
-    print(tx)
     H = np.array([
         [1+a00,a01,tx],
         [a10,1+a11,ty],
@@ -245,17 +245,21 @@ def project_image(image,embedded,p):
 
     xs,ys = embedded.shape[1],embedded.shape[0]
     xlim,ylim = embedded.shape[1],embedded.shape[0]
-    print(H)
-    for y in range(image.shape[0]):
-        for x in range(image.shape[1]):
-            xi = np.array([x,y,1]).T
-            xip = H@xi
-            xp,yp,c = xip[0],xip[1],xip[2]
-            xp = int(xp/c)
-            yp = int(yp/c)
-            if xp>0 and xp<xlim:
-                if yp>0 and yp<ylim:
-                    nimage[y,x] = embedded[yp,xp]
+
+
+    xmin,ymin = np.min(rect.points,axis=0)
+    xmax,ymax = np.max(rect.points,axis=0)
+    for y in range(ymin,ymax+1):
+        for x in range(xmin,xmax+1):
+            if rect.in_rectangle((x,y)):
+                xi = np.array([x,y,1]).T
+                xip = H@xi
+                xp,yp,c = xip[0],xip[1],xip[2]
+                xp = int(xp/c)
+                yp = int(yp/c)
+                if xp>0 and xp<xlim:
+                    if yp>0 and yp<ylim:
+                        nimage[y,x] = embedded[yp,xp]
     
     return nimage
             
