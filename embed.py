@@ -10,6 +10,12 @@ import sys
 import os
 from polygon import sort_rect,Rectangle
 import numba
+from multiprocessing import Pool
+from projections import Affine
+
+def process_pixel(inp):
+    y,x,rect = inp
+    return (rect.in_rectangle((x,y)),y,x)
 
 class ClickCanvas(FigureCanvas):
 
@@ -152,7 +158,8 @@ class ImageEmbedWindow(QMainWindow):
         print(points)
         print(npoints)
 
-        p = get_projection_params(xip,xi)
+        affine = Affine(xip,xi)
+        p = affine.p
 
         self.modified = project_image(self.background,self.embedded,p,Rectangle(points))
         self.figcanvas.ax.clear()
@@ -161,71 +168,6 @@ class ImageEmbedWindow(QMainWindow):
         self.figcanvas.ax.imshow(self.modified)
         self.figcanvas.draw()
         
-
-
-def build_hessian(x,y):
-    """
-    Takes array of x and y points in original image,
-    returns hessian for affine projection
-    """
-    x_sum = np.sum(x)
-    x_squared_sum = np.sum(x*x)
-    y_sum = np.sum(y)
-    y_squared_sum = np.sum(y*y)
-    xy_sum = np.sum(x*y)
-    n = len(x)
-    hessian = np.array([
-        [n,0,x_sum,y_sum,0,0],
-        [0,n,0,0,x_sum,y_sum],
-        [x_sum,0,x_squared_sum,xy_sum,0,0],
-        [y_sum,0,xy_sum,y_squared_sum,0,0],
-        [0,x_sum,0,0,x_squared_sum,xy_sum],
-        [0,y_sum,0,0,xy_sum,y_squared_sum]
-    ])
-    hessian = hessian
-    return hessian
-
-def build_b_mat(xi,xip):
-    """
-    Given arrays of original points and projected points,
-    returns b matrix
-    """
-    
-    xdif = xip[:,0] - xi[:,0]
-    x,y = xi[:,0],xi[:,1]
-    ydif = xip[:,1] - xi[:,1]
-
-    vsum = np.sum
-
-    b_mat = np.array([
-        [vsum(xdif)],
-        [vsum(ydif)],
-        [vsum(x*xdif)],
-        [vsum(y*xdif)],
-        [vsum(x*ydif)],
-        [vsum(y*ydif)]
-    ])
-    b_mat = b_mat 
-    return b_mat
-
-
-def get_projection_params(xi,xip):
-    """
-    Given a set of original points and projected points
-    returns affine projection parameters as an array
-    [tx,ty,a00,a01,a10,a11]
-
-    *a00,a11 still need to be incrementeed by 1.0
-    """
-    A = build_hessian(xi[:,0],xi[:,1])
-    b = build_b_mat(xi,xip)
-
-    try:
-        p= np.linalg.inv(A)@b
-    except:
-        p= np.linalg.pinv(A)@b
-    p = p[:,0].T
-    return p
 
 def project_image(image,embedded,p,rect):
     """
@@ -249,9 +191,10 @@ def project_image(image,embedded,p,rect):
 
     xmin,ymin = np.min(rect.points,axis=0)
     xmax,ymax = np.max(rect.points,axis=0)
+    workers = []
     for y in range(ymin,ymax+1):
+        xmin,xmax = map(int,rect.get_y_bounds(y))
         for x in range(xmin,xmax+1):
-            if rect.in_rectangle((x,y)):
                 xi = np.array([x,y,1]).T
                 xip = H@xi
                 xp,yp,c = xip[0],xip[1],xip[2]

@@ -48,8 +48,25 @@ class Rectangle:
                 return True
         return False
         
-        
+    def get_x_bounds(self,y):
 
+        left_line = self.points[[0,1],:]
+        right_line = self.points[[2,3],:]
+
+        left = np.interp(y,left_line[:,0],left_line[:,1])
+        right = np.interp(y,right_line[:,0],right_line[:,1])
+        
+        return left,right
+    
+    def get_y_bounds(self,x):
+
+        top_line = self.points[[1,3],:]
+        bottom_line = self.points[[0,2],:]
+
+        top = np.interp(x,top_line[:,1],top_line[:,0])
+        bottom = np.interp(x,bottom_line[:,1],bottom_line[:,0])
+
+        return bottom,top
 
 if __name__ == "__main__":
 
