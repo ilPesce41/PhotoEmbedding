@@ -135,7 +135,7 @@ class ImageEmbedWindow(QMainWindow):
             return
         
         xlim,ylim = self.embedded.shape[0:2]
-        npoints = sorted([(0,0),(xlim,0),(0,ylim),(xlim,ylim)])
+        npoints = sorted([(0,0),(ylim,0),(0,xlim),(ylim,xlim)])
 
         xi = []
         xip = []
