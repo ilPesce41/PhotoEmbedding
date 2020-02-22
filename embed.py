@@ -158,8 +158,8 @@ class ImageEmbedWindow(QMainWindow):
 
         affine = Affine(xip,xi)
         H = affine.H
-        # projection = Homogeneous(xip,xi)
-        # H = projection.H
+        projection = Homogeneous(xip,xi)
+        H = projection.H
 
         self.modified = project_image(self.background,self.embedded,H,Rectangle(points))
         self.figcanvas.ax.clear()
@@ -184,19 +184,26 @@ def project_image(image,embedded,H,rect):
 
     xmin,ymin = np.min(rect.points,axis=0)
     xmax,ymax = np.max(rect.points,axis=0)
+    print("X",xmin,xmax)
+    print("Y",ymin,ymax)
     workers = []
     for x in range(xmin,xmax+1):
-        ymin,ymax = map(int,rect.get_x_bounds(x))
-        # print(xmin,xmax)
+        ymax,ymin = map(int,rect.get_y_bounds(x))
+        # print(ymin,ymax)
         for y in range(ymin,ymax+1):
                 xi = np.array([x,y,1]).T
                 xip = H@xi
                 xp,yp,c = xip[0],xip[1],xip[2]
                 xp = int(xp/c)
                 yp = int(yp/c)
-                if xp>0 and xp<xlim:
-                    if yp>0 and yp<ylim:
-                        nimage[y,x] = embedded[yp,xp]
+                xp = np.max([0,xp])
+                xp = np.min([xp,xlim-1])
+                yp = np.max([0,yp])
+                yp = np.min([yp,ylim-1])
+                nimage[y,x] = embedded[yp,xp]
+                    
+                # print(x,y)
+                # print(nimage.shape)
                 # nimage[y,x] = [0,0,0]
     
     return nimage

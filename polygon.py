@@ -8,13 +8,13 @@ def sort_rect(points):
     [lower_left, upper_left, lower_right, upper_right]
     """
     points = points[0:4]
-    x_sort = sorted(points,key=lambda x: x[1])
+    x_sort = sorted(points,key=lambda x: x[0])
 
     left = x_sort[:2]
     right = x_sort[2:]
 
-    left = sorted(left,key=lambda x: x[0])
-    right = sorted(right, key=lambda x : x[0])
+    left = sorted(left,key=lambda x: -x[1])
+    right = sorted(right, key=lambda x : -x[1])
     print(left+right)
     return left+right
 
@@ -53,8 +53,8 @@ class Rectangle:
         left_line = self.points[[0,1],:]
         right_line = self.points[[2,3],:]
 
-        left = np.interp(y,left_line[:,0],left_line[:,1])
-        right = np.interp(y,right_line[:,0],right_line[:,1])
+        left = np.interp(y,left_line[:,1],left_line[:,0])
+        right = np.interp(y,right_line[:,1],right_line[:,0])
         
         return left,right
     
@@ -63,8 +63,8 @@ class Rectangle:
         top_line = self.points[[1,3],:]
         bottom_line = self.points[[0,2],:]
 
-        top = np.interp(x,top_line[:,1],top_line[:,0])
-        bottom = np.interp(x,bottom_line[:,1],bottom_line[:,0])
+        top = np.interp(x,top_line[:,0],top_line[:,1])
+        bottom = np.interp(x,bottom_line[:,0],bottom_line[:,1])
 
         return bottom,top
 
