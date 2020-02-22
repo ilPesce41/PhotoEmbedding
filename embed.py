@@ -1,6 +1,14 @@
+"""
+@author: Cole Hill
+University of South Florida
+Department of Computer Science and Engineering
+Computer Vision
+Sprint 2020
+"""
+
+#External Dependencies
 from imageio import imread,imwrite
 import numpy as np
-import numba
 import matplotlib.pyplot as plt
 import matplotlib
 from PyQt5.QtWidgets import QApplication,QMainWindow
@@ -8,33 +16,50 @@ from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 import sys
 import os
+
+
 from polygon import sort_rect,Rectangle
-import numba
-from multiprocessing import Pool
 from projections import Affine,Homogeneous
 
-def process_pixel(inp):
-    y,x,rect = inp
-    return (rect.in_rectangle((x,y)),y,x)
+
 
 class ClickCanvas(FigureCanvas):
-
+    """
+    Extension of matplotlib figure canvas to place marker on image
+    when a user clicks. Tracks the location of the markers.
+    4 marker maximum
+    """
     def __init__(self,fig):
 
         super().__init__(fig)
         self.fig = fig
+        #Initialize figure with single axis
         self.ax = fig.subplots(1)
+
+        #Arrays to keep track of points/point artist
         self.points = []
-        self.fig.canvas.mpl_connect('button_press_event',self.on_click)
         self.dot_artists = []
 
+        #Hook up click event with marker placement fcn
+        self.fig.canvas.mpl_connect('button_press_event',self.on_click)
+        
     
     def on_click(self,event):
+        """
+        Handles when user clicks on image
+        Places point on image using scatter and adds point
+        to self.points list
+        """
         
+        #Get marker location
         x,y = int(event.xdata),int(event.ydata)
         self.points.append((x,y))
+        
+        #Limit to 4 points
         while len(self.points)>4:
             self.points = self.points[1:]
+        
+        #Remove all markers and replace
         for art in self.dot_artists:    
             art.remove()
         self.dot_artists = [] 
@@ -44,15 +69,22 @@ class ClickCanvas(FigureCanvas):
 
 
 class ImageEmbedWindow(QMainWindow):
-
+    """
+    Class for importing two images `background` and `embedded`.
+    Projects  `embedded` into `background` based on points in `background`
+    selected by user
+    """
     def __init__(self):
 
         super().__init__()
 
+        #Figure canvas for plotting images and getting marker points
+        self.figcanvas = ClickCanvas(plt.Figure())
+        
+        #Setup UI
         widget = QtWidgets.QWidget()
 
         vbox = QtWidgets.QVBoxLayout()
-        self.figcanvas = ClickCanvas(plt.Figure())
         vbox.addWidget(self.figcanvas)
         
         hb1 = QtWidgets.QHBoxLayout()
@@ -84,24 +116,33 @@ class ImageEmbedWindow(QMainWindow):
         widget.setLayout(vbox)
         self.setCentralWidget(widget)
 
+        #3 image variables
         self.background = None
         self.embedded = None
         self.modified = None
 
+        #hookup button events with callbacks
         save_image.clicked.connect(self.save_image)
         clear.clicked.connect(self.clear)
         embed_plots.clicked.connect(self.embed_image)
 
 
     def import_file(self,line_edit):
-
+        """
+        Opens dialog to query file path
+        params:
+        line_edit - line edit to populate with filepath
+        """
         fp,_ = QtWidgets.QFileDialog().getOpenFileName(parent=self,caption="Select File")
         if _:
             line_edit.setText(fp)
 
 
     def save_image(self):
-
+        """
+        Opens dialog to query for file path to save modified image,
+        saves image at specified filepath
+        """
         if not self.modified is None:
 
             fp,_ = QtWidgets.QFileDialog().getSaveFileName(parent = self, caption = "Save Image")
@@ -111,7 +152,10 @@ class ImageEmbedWindow(QMainWindow):
                 imwrite(fp,self.modified)
 
     def plotBackground(self):
-
+        """
+        Plots background image
+        """
+        self.clear()
         try:
             self.background = imread(self.embed_file.text())
             self.figcanvas.ax.imshow(self.background)
@@ -120,7 +164,9 @@ class ImageEmbedWindow(QMainWindow):
             print(e)
 
     def clear(self):
-        
+        """
+        Clears out image and replots the background
+        """
         self.figcanvas.ax.clear()
         self.figcanvas.fig.clear()
         self.figcanvas.ax = self.figcanvas.fig.subplots(1)
@@ -132,36 +178,46 @@ class ImageEmbedWindow(QMainWindow):
         self.figcanvas.draw()
 
     def embed_image(self):
+        """
+        Embeds `embedded` in `background` based on user points
+        """
 
+        #Get points from figure canvas
         points = sort_rect(self.figcanvas.points)
+        #verify we have 4 points
         if len(points)!=4:
             return
         
+        #Verify we have an image to embed
         try:
             self.embedded = imread(self.embedded_file.text())
         except:
             return
         
+        #Establish corner points of image
         xlim,ylim = self.embedded.shape[0:2]
         npoints = sort_rect([(0,0),(ylim,0),(0,xlim),(ylim,xlim)])
 
+        #Put points in to numpy arrays
         xi = []
         xip = []
-
         for i in range(len(npoints)):
             xi.append([npoints[i][0],npoints[i][1]])
             xip.append([points[i][0],points[i][1]])
-
         xi = np.array(xi)
         xip = np.array(xip)
         
-
-        affine = Affine(xip,xi)
-        H = affine.H
+        #Affine projection
+        # affine = Affine(xip,xi)
+        # H = affine.H
+        #Homogeneous Projection
         projection = Homogeneous(xip,xi)
         H = projection.H
 
+        #Project the image
         self.modified = project_image(self.background,self.embedded,H,Rectangle(points))
+        
+        #Plot projection
         self.figcanvas.ax.clear()
         self.figcanvas.points = []
         self.figcanvas.dot_artists = []
@@ -175,37 +231,35 @@ def project_image(image,embedded,H,rect):
     affine projection with paramters `H`
 
     """
+    #Copy of background image to manipulate
     nimage = np.copy(image)
     
-
+    #Establish image dimensions
     xs,ys = embedded.shape[1],embedded.shape[0]
     xlim,ylim = embedded.shape[1],embedded.shape[0]
 
-
+    #Smallest necessary rectangle of points to scan
     xmin,ymin = np.min(rect.points,axis=0)
     xmax,ymax = np.max(rect.points,axis=0)
-    print("X",xmin,xmax)
-    print("Y",ymin,ymax)
-    workers = []
+    
+    #Scan through all xcords in rectangle
     for x in range(xmin,xmax+1):
+        #Scan through all ycords for given xcord
         ymax,ymin = map(int,rect.get_y_bounds(x))
-        # print(ymin,ymax)
         for y in range(ymin,ymax+1):
+                #Back project pixel location
                 xi = np.array([x,y,1]).T
                 xip = H@xi
                 xp,yp,c = xip[0],xip[1],xip[2]
                 xp = int(xp/c)
                 yp = int(yp/c)
+                #Ensure we are still in image bounds
                 xp = np.max([0,xp])
                 xp = np.min([xp,xlim-1])
                 yp = np.max([0,yp])
                 yp = np.min([yp,ylim-1])
-                nimage[y,x] = embedded[yp,xp]
-                    
-                # print(x,y)
-                # print(nimage.shape)
-                # nimage[y,x] = [0,0,0]
-    
+                #Update pixel value
+                nimage[y,x] = embedded[yp,xp]      
     return nimage
             
 
@@ -217,35 +271,3 @@ if __name__ == "__main__":
     window.show()
 
     Application.exec_()
-
-# [(409, 247), (425, 410), (665, 237), (673, 422)]
-# [(0, 153), (0, 153), (153, 0), (153, 153)]
-
-    imm1 = np.array([
-        [0, 153], 
-        [0, 153], 
-        [153, 0], 
-        [153, 153]
-    ])
-
-    imm2 = np.array([
-        [409, 247], 
-        [425, 410], 
-        [665, 237], 
-        [673, 422]
-    ])
-
-    p = get_projection_params(imm1,imm2)
-    tx,ty,a00,a01,a10,a11 = p
-    H = np.array([
-        [1+a00,a01,tx],
-        [a10,1+a11,ty],
-        [0,0,1]
-    ])
-
-    imm_p = np.copy(imm1)
-    imm1 = np.hstack([imm1,np.ones((4,1))])
-    for i in range(imm1.shape[0]):
-        imm_p[i] = (H@imm1[i].T)[:-1]
-
-    print(imm_p)
