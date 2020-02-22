@@ -11,7 +11,7 @@ import os
 from polygon import sort_rect,Rectangle
 import numba
 from multiprocessing import Pool
-from projections import Affine
+from projections import Affine,Homogeneous
 
 def process_pixel(inp):
     y,x,rect = inp
@@ -159,9 +159,11 @@ class ImageEmbedWindow(QMainWindow):
         print(npoints)
 
         affine = Affine(xip,xi)
-        p = affine.p
+        H = affine.H
+        projection = Homogeneous(xip,xi)
+        H = projection.H
 
-        self.modified = project_image(self.background,self.embedded,p,Rectangle(points))
+        self.modified = project_image(self.background,self.embedded,H,Rectangle(points))
         self.figcanvas.ax.clear()
         self.figcanvas.points = []
         self.figcanvas.dot_artists = []
@@ -169,7 +171,7 @@ class ImageEmbedWindow(QMainWindow):
         self.figcanvas.draw()
         
 
-def project_image(image,embedded,p,rect):
+def project_image(image,embedded,H,rect):
     """
     Embedds and image `embedded` in `image` using
     affine projection with paramters `p`
@@ -178,12 +180,6 @@ def project_image(image,embedded,p,rect):
     """
     nimage = np.copy(image)
     
-    tx,ty,a00,a01,a10,a11 = p
-    H = np.array([
-        [1+a00,a01,tx],
-        [a10,1+a11,ty],
-        [0,0,1]
-    ])
 
     xs,ys = embedded.shape[1],embedded.shape[0]
     xlim,ylim = embedded.shape[1],embedded.shape[0]
