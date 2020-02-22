@@ -155,13 +155,11 @@ class ImageEmbedWindow(QMainWindow):
         xi = np.array(xi)
         xip = np.array(xip)
         
-        print(points)
-        print(npoints)
 
         affine = Affine(xip,xi)
         H = affine.H
-        projection = Homogeneous(xip,xi)
-        H = projection.H
+        # projection = Homogeneous(xip,xi)
+        # H = projection.H
 
         self.modified = project_image(self.background,self.embedded,H,Rectangle(points))
         self.figcanvas.ax.clear()
@@ -174,9 +172,8 @@ class ImageEmbedWindow(QMainWindow):
 def project_image(image,embedded,H,rect):
     """
     Embedds and image `embedded` in `image` using
-    affine projection with paramters `p`
+    affine projection with paramters `H`
 
-    `p` = [tx,ty,a00,a01,a10,a11]
     """
     nimage = np.copy(image)
     
@@ -188,9 +185,10 @@ def project_image(image,embedded,H,rect):
     xmin,ymin = np.min(rect.points,axis=0)
     xmax,ymax = np.max(rect.points,axis=0)
     workers = []
-    for y in range(ymin,ymax+1):
-        xmin,xmax = map(int,rect.get_y_bounds(y))
-        for x in range(xmin,xmax+1):
+    for x in range(xmin,xmax+1):
+        ymin,ymax = map(int,rect.get_x_bounds(x))
+        # print(xmin,xmax)
+        for y in range(ymin,ymax+1):
                 xi = np.array([x,y,1]).T
                 xip = H@xi
                 xp,yp,c = xip[0],xip[1],xip[2]
@@ -199,6 +197,7 @@ def project_image(image,embedded,H,rect):
                 if xp>0 and xp<xlim:
                     if yp>0 and yp<ylim:
                         nimage[y,x] = embedded[yp,xp]
+                # nimage[y,x] = [0,0,0]
     
     return nimage
             

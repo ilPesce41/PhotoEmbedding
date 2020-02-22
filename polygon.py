@@ -15,7 +15,7 @@ def sort_rect(points):
 
     left = sorted(left,key=lambda x: x[0])
     right = sorted(right, key=lambda x : x[0])
-
+    print(left+right)
     return left+right
 
 class Rectangle:

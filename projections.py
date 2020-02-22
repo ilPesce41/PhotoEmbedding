@@ -160,24 +160,24 @@ class Homogeneous:
         xp_est = (xp_est.T/xp_est[:,-1]).T
 
         eps = np.sum(np.abs(xp_est-xip))
-        print(eps)
+        #print(eps)
 
         k=0
         while eps>.01 and k<1000:
             k += 1
             self.build_b_mat(xi[:,0],xi[:,1],xip[:,0],xip[:,1],xp_est[:,0],xp_est[:,1],H_est)
-            print(self.b)
+            #print(self.b)
             A = self.build_hessian(xi[:,0],xi[:,1],xp_est[:,0],xp_est[:,1],H_est)
-            # #print(A)
+            #print(A)
             p_est = np.linalg.pinv(A.astype(float))@self.b
-            # print("deltap",p_est)
-            print(p_est)
+            #print("deltap",p_est)
+            #print(p_est)
             H_est = np.hstack([p_est,[0]]).reshape(3,3)
-            print(H_est)
-            # print()
+            #print(H_est)
+            #print()
             self.H = self.H + H_est
             H_est = self.H
-            # print(self.H)
+            #print(self.H)
             # raise Exception
             xp_est = []
             for i in range(xi.shape[0]):
@@ -185,9 +185,9 @@ class Homogeneous:
             xp_est = np.array(xp_est)
             xp_est = (xp_est.T/xp_est[:,-1]).T
             eps = np.sum(np.abs(xp_est-xip))
-            print(eps)
+            #print(eps)
             # if k%5==0:
-            #     # print(eps)
+            #     #print(eps)
             #     raise Exception
             #print(eps)
             #print(xip)
