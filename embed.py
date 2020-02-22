@@ -3,7 +3,7 @@
 University of South Florida
 Department of Computer Science and Engineering
 Computer Vision
-Sprint 2020
+Spring 2020
 """
 
 #External Dependencies
@@ -18,7 +18,7 @@ import sys
 import os
 
 
-from polygon import sort_rect,Rectangle
+from polygon import sort_rect,Quadrilateral
 from projections import Affine,Homogeneous
 
 
@@ -215,7 +215,7 @@ class ImageEmbedWindow(QMainWindow):
         H = projection.H
 
         #Project the image
-        self.modified = project_image(self.background,self.embedded,H,Rectangle(points))
+        self.modified = project_image(self.background,self.embedded,H,Quadrilateral(points))
         
         #Plot projection
         self.figcanvas.ax.clear()
